@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Audio Frequency Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            color: white;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #visualizer {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 11px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+
+        select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 12px;
+        }
+
+        select option {
+            background: #333;
+            color: white;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .stats {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-width: 200px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            opacity: 0.7;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .pulsing {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="visualizer"></canvas>
+        
+        <div class="controls">
+            <div class="control-group">
+                <button id="startBtn" onclick="toggleVisualizer()">Start Visualizer</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Visualization Mode</label>
+                <select id="modeSelect" onchange="changeVisualizationMode()">
+                    <option value="bars">Frequency Bars</option>
+                    <option value="circular">Circular Spectrum</option>
+                    <option value="waveform">Waveform</option>
+                    <option value="particles">Particle System</option>
+                    <option value="mandala">Audio Mandala</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Sensitivity</label>
+                <input type="range" id="sensitivity" min="0.5" max="3" step="0.1" value="1.5" oninput="updateSensitivity()">
+            </div>
+            
+            <div class="control-group">
+                <label>Smoothing</label>
+                <input type="range" id="smoothing" min="0" max="0.9" step="0.1" value="0.7" oninput="updateSmoothing()">
+            </div>
+            
+            <div class="control-group">
+                <label>Color Theme</label>
+                <select id="colorTheme" onchange="changeColorTheme()">
+                    <option value="rainbow">Rainbow</option>
+                    <option value="fire">Fire</option>
+                    <option value="ocean">Ocean</option>
+                    <option value="neon">Neon</option>
+                    <option value="monochrome">Monochrome</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stats-row">
+                <span>FPS:</span>
+                <span id="fps">0</span>
+            </div>
+            <div class="stats-row">
+                <span>Peak Freq:</span>
+                <span id="peakFreq">0 Hz</span>
+            </div>
+            <div class="stats-row">
+                <span>RMS Level:</span>
+                <span id="rmsLevel">0 dB</span>
+            </div>
+            <div class="stats-row">
+                <span>Dynamic Range:</span>
+                <span id="dynamicRange">0 dB</span>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading pulsing" style="display: none;">
+            Initializing Audio Context...
+        </div>
+    </div>
+
+    <script>
+        class AdvancedAudioVisualizer {
+            constructor() {
+                this.canvas = document.getElementById('visualizer');
+                this.ctx = this.canvas.getContext('2d');
+                this.audioContext = null;
+                this.analyzer = null;
+                this.dataArray = null;
+                this.timeDataArray = null;
+                this.isRunning = false;
+                this.animationId = null;
+                
+                // Configuration
+                this.config = {
+                    fftSize: 2048,
+                    sensitivity: 1.5,
+                    smoothing: 0.7,
+                    mode: 'bars',
+                    colorTheme: 'rainbow'
+                };
+                
+                // Performance tracking
+                this.lastFrameTime = 0;
+                this.frameCount = 0;
+                this.fps = 0;
+                
+                // Particle system for particle mode
+                this.particles = [];
+                this.particleCount = 200;
+                
+                // Color themes
+                this.colorThemes = {
+                    rainbow: (i, max, intensity) => {
+                        const hue = (i / max) * 360;
+                        return `hsl(${hue}, 100%, ${50 + intensity * 30}%)`;
+                    },
+                    fire: (i, max, intensity) => {
+                        const r = Math.min(255, 50 + intensity * 205);
+                        const g = Math.min(255, intensity * 150);
+                        const b = intensity * 50;
+                        return `rgb(${r}, ${g}, ${b})`;
+                    },
+                    ocean: (i, max, intensity) => {
+                        const r = intensity * 100;
+                        const g = 100 + intensity * 155;
+                        const b = 150 + intensity * 105;
+                        return `rgb(${r}, ${g}, ${b})`;
+                    },
+                    neon: (i, max, intensity) => {
+                        const colors = ['#ff0080', '#00ff80', '#8000ff', '#ff8000', '#0080ff'];
+                        const colorIndex = Math.floor((i / max) * colors.length);
+                        const alpha = 0.3 + intensity * 0.7;
+                        return colors[colorIndex] + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+                    },
+                    monochrome: (i, max, intensity) => {
+                        const value = Math.floor(50 + intensity * 205);
+                        return `rgb(${value}, ${value}, ${value})`;
+                    }
+                };
+                
+                this.initCanvas();
+                this.initParticles();
+            }
+            
+            initCanvas() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+            
+            initParticles() {
+                this.particles = [];
+                for (let i = 0; i < this.particleCount; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        size: Math.random() * 3 + 1,
+                        intensity: 0,
+                        life: Math.random()
+                    });
+                }
+            }
+            
+            async setupAudioProcessing(stream) {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = this.audioContext.createMediaStreamSource(stream);
+                    this.analyzer = this.audioContext.createAnalyser();
+                    
+                    source.connect(this.analyzer);
+                    this.analyzer.fftSize = this.config.fftSize;
+                    this.analyzer.smoothingTimeConstant = this.config.smoothing;
+                    
+                    const bufferLength = this.analyzer.frequencyBinCount;
+                    this.dataArray = new Uint8Array(bufferLength);
+                    this.timeDataArray = new Uint8Array(bufferLength);
+                    
+                    this.draw();
+                    document.getElementById('loading').style.display = 'none';
+                } catch (error) {
+                    console.error('Error setting up audio processing:', error);
+                    document.getElementById('loading').style.display = 'none';
+                }
+            }
+            
+            draw() {
+                if (!this.isRunning) return;
+                
+                this.animationId = requestAnimationFrame(() => this.draw());
+                
+                // Calculate FPS
+                const currentTime = performance.now();
+                if (currentTime - this.lastFrameTime >= 1000) {
+                    this.fps = this.frameCount;
+                    this.frameCount = 0;
+                    this.lastFrameTime = currentTime;
+                    document.getElementById('fps').textContent = this.fps;
+                }
+                this.frameCount++;
+                
+                // Get audio data
+                this.analyzer.getByteFrequencyData(this.dataArray);
+                this.analyzer.getByteTimeDomainData(this.timeDataArray);
+                
+                // Calculate audio statistics
+                this.updateAudioStats();
+                
+                // Clear canvas
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw based on current mode
+                switch (this.config.mode) {
+                    case 'bars':
+                        this.drawFrequencyBars();
+                        break;
+                    case 'circular':
+                        this.drawCircularSpectrum();
+                        break;
+                    case 'waveform':
+                        this.drawWaveform();
+                        break;
+                    case 'particles':
+                        this.drawParticles();
+                        break;
+                    case 'mandala':
+                        this.drawMandala();
+                        break;
+                }
+            }
+            
+            drawFrequencyBars() {
+                const barWidth = (this.canvas.width / this.dataArray.length) * 2.5;
+                let x = 0;
+                
+                for (let i = 0; i < this.dataArray.length; i++) {
+                    const barHeight = (this.dataArray[i] / 255) * this.canvas.height * this.config.sensitivity;
+                    const intensity = this.dataArray[i] / 255;
+                    
+                    this.ctx.fillStyle = this.colorThemes[this.config.colorTheme](i, this.dataArray.length, intensity);
+                    this.ctx.fillRect(x, this.canvas.height - barHeight, barWidth, barHeight);
+                    
+                    // Add glow effect
+                    this.ctx.shadowColor = this.ctx.fillStyle;
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.fillRect(x, this.canvas.height - barHeight, barWidth, barHeight);
+                    this.ctx.shadowBlur = 0;
+                    
+                    x += barWidth + 1;
+                }
+            }
+            
+            drawCircularSpectrum() {
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                const radius = Math.min(centerX, centerY) * 0.3;
+                
+                for (let i = 0; i < this.dataArray.length; i++) {
+                    const angle = (i / this.dataArray.length) * Math.PI * 2;
+                    const barHeight = (this.dataArray[i] / 255) * radius * this.config.sensitivity;
+                    const intensity = this.dataArray[i] / 255;
+                    
+                    const x1 = centerX + Math.cos(angle) * radius;
+                    const y1 = centerY + Math.sin(angle) * radius;
+                    const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+                    const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+                    
+                    this.ctx.strokeStyle = this.colorThemes[this.config.colorTheme](i, this.dataArray.length, intensity);
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawWaveform() {
+                this.ctx.strokeStyle = '#00ff88';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                const sliceWidth = this.canvas.width / this.timeDataArray.length;
+                let x = 0;
+                
+                for (let i = 0; i < this.timeDataArray.length; i++) {
+                    const v = this.timeDataArray[i] / 128.0;
+                    const y = v * this.canvas.height / 2;
+                    
+                    if (i === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                this.ctx.stroke();
+            }
+            
+            drawParticles() {
+                // Update particles based on audio data
+                const avgIntensity = this.dataArray.reduce((sum, val) => sum + val, 0) / this.dataArray.length / 255;
+                
+                this.particles.forEach((particle, index) => {
+                    const freqIndex = Math.floor((index / this.particles.length) * this.dataArray.length);
+                    particle.intensity = this.dataArray[freqIndex] / 255;
+                    
+                    // Update position
+                    particle.x += particle.vx * (1 + particle.intensity * 5);
+                    particle.y += particle.vy * (1 + particle.intensity * 5);
+                    
+                    // Wrap around screen
+                    if (particle.x < 0) particle.x = this.canvas.width;
+                    if (particle.x > this.canvas.width) particle.x = 0;
+                    if (particle.y < 0) particle.y = this.canvas.height;
+                    if (particle.y > this.canvas.height) particle.y = 0;
+                    
+                    // Draw particle
+                    const size = particle.size * (1 + particle.intensity * 3);
+                    this.ctx.fillStyle = this.colorThemes[this.config.colorTheme](index, this.particles.length, particle.intensity);
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Add glow
+                    this.ctx.shadowColor = this.ctx.fillStyle;
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.fill();
+                    this.ctx.shadowBlur = 0;
+                });
+            }
+            
+            drawMandala() {
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                const layers = 8;
+                
+                for (let layer = 0; layer < layers; layer++) {
+                    const radius = (layer + 1) * 30;
+                    const segments = 16 + layer * 8;
+                    
+                    for (let i = 0; i < segments; i++) {
+                        const angle = (i / segments) * Math.PI * 2;
+                        const dataIndex = Math.floor((i / segments) * this.dataArray.length);
+                        const intensity = this.dataArray[dataIndex] / 255;
+                        
+                        const x = centerX + Math.cos(angle) * radius;
+                        const y = centerY + Math.sin(angle) * radius;
+                        const size = 2 + intensity * 8;
+                        
+                        this.ctx.fillStyle = this.colorThemes[this.config.colorTheme](dataIndex, this.dataArray.length, intensity);
+                        this.ctx.beginPath();
+                        this.ctx.arc(x, y, size, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        
+                        // Connect to center with lines
+                        this.ctx.strokeStyle = this.ctx.fillStyle;
+                        this.ctx.globalAlpha = intensity * 0.3;
+                        this.ctx.lineWidth = 1;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(centerX, centerY);
+                        this.ctx.lineTo(x, y);
+                        this.ctx.stroke();
+                        this.ctx.globalAlpha = 1;
+                    }
+                }
+            }
+            
+            updateAudioStats() {
+                // Calculate peak frequency
+                let maxValue = 0;
+                let peakIndex = 0;
+                for (let i = 0; i < this.dataArray.length; i++) {
+                    if (this.dataArray[i] > maxValue) {
+                        maxValue = this.dataArray[i];
+                        peakIndex = i;
+                    }
+                }
+                const peakFreq = (peakIndex * this.audioContext.sampleRate) / (2 * this.dataArray.length);
+                document.getElementById('peakFreq').textContent = Math.round(peakFreq) + ' Hz';
+                
+                // Calculate RMS level
+                const rms = Math.sqrt(this.dataArray.reduce((sum, val) => sum + val * val, 0) / this.dataArray.length);
+                const rmsDb = 20 * Math.log10(rms / 255);
+                document.getElementById('rmsLevel').textContent = Math.round(rmsDb) + ' dB';
+                
+                // Calculate dynamic range
+                const min = Math.min(...this.dataArray);
+                const max = Math.max(...this.dataArray);
+                const dynamicRange = 20 * Math.log10(max / Math.max(min, 1));
+                document.getElementById('dynamicRange').textContent = Math.round(dynamicRange) + ' dB';
+            }
+            
+            async start() {
+                if (this.isRunning) return;
+                
+                document.getElementById('loading').style.display = 'block';
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false
+                        }, 
+                        video: false 
+                    });
+                    
+                    this.isRunning = true;
+                    await this.setupAudioProcessing(stream);
+                    
+                    document.getElementById('startBtn').textContent = 'Stop Visualizer';
+                    document.getElementById('startBtn').classList.add('active');
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Could not access microphone. Please check permissions.');
+                }
+            }
+            
+            stop() {
+                this.isRunning = false;
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                if (this.audioContext) {
+                    this.audioContext.close();
+                }
+                
+                document.getElementById('startBtn').textContent = 'Start Visualizer';
+                document.getElementById('startBtn').classList.remove('active');
+                
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            updateConfig(key, value) {
+                this.config[key] = value;
+                if (this.analyzer) {
+                    if (key === 'smoothing') {
+                        this.analyzer.smoothingTimeConstant = value;
+                    }
+                }
+                if (key === 'mode' && value === 'particles') {
+                    this.initParticles();
+                }
+            }
+        }
+        
+        // Initialize visualizer
+        const visualizer = new AdvancedAudioVisualizer();
+        
+        // Event handlers
+        function toggleVisualizer() {
+            if (visualizer.isRunning) {
+                visualizer.stop();
+            } else {
+                visualizer.start();
+            }
+        }
+        
+        function changeVisualizationMode() {
+            const mode = document.getElementById('modeSelect').value;
+            visualizer.updateConfig('mode', mode);
+        }
+        
+        function updateSensitivity() {
+            const sensitivity = parseFloat(document.getElementById('sensitivity').value);
+            visualizer.updateConfig('sensitivity', sensitivity);
+        }
+        
+        function updateSmoothing() {
+            const smoothing = parseFloat(document.getElementById('smoothing').value);
+            visualizer.updateConfig('smoothing', smoothing);
+        }
+        
+        function changeColorTheme() {
+            const theme = document.getElementById('colorTheme').value;
+            visualizer.updateConfig('colorTheme', theme);
+        }
+    </script>
+</body>
+</html>
